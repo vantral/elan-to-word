@@ -1,31 +1,33 @@
+from flask import Flask, send_file
+from flask import render_template, request, redirect, url_for
 from docx import Document
 from docx.shared import Pt, Cm
 from collections import defaultdict
 import re
-from docx.enum.text import WD_LINE_SPACING
+import os
 
 
-def open_file(filename):
-    text = open(filename, encoding='utf-8').read()
-    return text
+FILE = ['']
 
-
-def elan_data(filename):
-    elan = open_file(filename)
+def elan_data(file):
     # elan = elan.replace('&', '')
     # elan = elan.replace('<', '&lt;')
     # elan = elan.replace('>', '&gt;')
-    elan = elan.splitlines()
+    elan = file.splitlines()
     transc = defaultdict(str)
     transl = defaultdict(str)
     gloss = defaultdict(str)
     comment = defaultdict(str)
     for line in elan:
         tokens = line.split('\t')
-        layer = tokens[0]
-        time_start = tokens[2]
-        time_finish = tokens[4]
-        text = tokens[8]
+        if len(line) == 9:
+            indices = (0, 2, 4, 8)
+        else:
+            indices = (0, 2, 3, 4)
+        layer = tokens[indices[0]]
+        time_start = tokens[indices[1]]
+        time_finish = tokens[indices[2]]
+        text = tokens[indices[3]]
         if layer == 'transcription':
             transc[(time_start, time_finish)] = text
         elif layer == 'translation':
@@ -37,10 +39,7 @@ def elan_data(filename):
     return transc, transl, gloss, comment
 
 
-def to_word(pivot_dictionary):
-    informant = input('введите код информанта ')
-    date = input('введите дату ')
-    expe = input('введите свой код ')
+def to_word(pivot_dictionary, informant, date, expe, others, theme):
     name = f'eve_{informant}_{date}_{expe}.docx'
 
     document = Document()
@@ -67,10 +66,10 @@ def to_word(pivot_dictionary):
     dat[0].text, dat[1].text = 'Дата', date
 
     els = table.rows[3].cells
-    els[0].text, els[1].text = 'Кто ещё был на паре', input('Кто ещё был на паре? ')
+    els[0].text, els[1].text = 'Кто ещё был на паре', others
 
     inf = table.rows[4].cells
-    inf[0].text, inf[1].text = 'Примерная тематика', input('Примерная тематика ')
+    inf[0].text, inf[1].text = 'Примерная тематика', theme
 
     for row in table.rows:
         for cell in row.cells:
@@ -116,7 +115,11 @@ def to_word(pivot_dictionary):
         f = paragraph.style.font
         f.name = 'Times New Roman'
         f.size = Pt(12)
-    document.save(f'{name}.docx')
+
+    filename = f'/home/vantral/mysite/{name}'
+    document.save(filename)
+
+    return name
 
 
 def mapping(transc, transl, gloss, comment):
@@ -135,14 +138,51 @@ def glossing(text):
     return glossed_text
 
 
-def main():
-    file = input('введите название илановского файла или назовите его 1.txt и нажмите Enter')
-    if file == '':
-        file = '1.txt'
+def main(file, informant, date, expe, others, theme):
     transc, transl, gloss, comment = elan_data(file)
     mapped_dic = mapping(transc, transl, gloss, comment)
-    to_word(mapped_dic)
+    return to_word(mapped_dic, informant, date, expe, others, theme)
 
+
+app = Flask(__name__)
+
+
+@app.route('/')
+def index():
+    # files = os.listdir('./mysite')
+    # for file in files:
+    #     if file.endswith('.docx'):
+    #         os.remove(f'/home/vantral/mysite/{file}')
+    return render_template(
+        'index.html'
+    )
 
 if __name__ == '__main__':
-    main()
+    app.run(debug=True)
+
+
+@app.route('/results', methods = ['POST'])
+def upload_route_summary():
+    if request.method == 'POST':
+
+        f = request.files['fileupload']
+
+        fstring = f.read().decode('utf-8')
+        FILE[0] = fstring
+
+    return render_template('data.html')
+
+
+@app.route('/itog', methods = ['GET'])
+def create_file():
+    informant = request.args.get('informant')
+    date = request.args.get('date')
+    expe = request.args.get('expe')
+    others = request.args.get('others')
+    theme = request.args.get('theme')
+    name = main(FILE[0], informant, date, expe, others, theme)
+
+    response = send_file(name, attachment_filename=name, as_attachment=True)
+    response.headers["x-filename"] = name
+    response.headers["Access-Control-Expose-Headers"] = 'x-filename'
+    return response
