@@ -11,6 +11,7 @@ MAX_LINE_LEN = 70
 OUT_FONT = 'Times New Roman'
 OUT_FONT_POINTS = 12
 
+FACTOR = 1
 
 def getTextDimensions(text, points, font):
     class SIZE(ctypes.Structure):
@@ -27,9 +28,6 @@ def getTextDimensions(text, points, font):
     ctypes.windll.gdi32.DeleteObject(hfont)
 
     return size.cx, size.cy
-
-# print(getTextDimensions("Hello world", 12, "Times New Roman"))
-# print(getTextDimensions("Hello world", 12, "Arial"))
 
 
 def open_file(filename):
@@ -79,9 +77,9 @@ def elan_data(file):
 
 
 def to_word(pivot_dictionary):
-    informant = 'eek' or input('введите код информанта ')
-    date = '20210706' or input('введите дату ')
-    expe = 'mb' or input('введите свой код ')
+    informant = input('введите код информанта ')
+    date = input('введите дату ')
+    expe = input('введите свой код ')
     name = f'eve_{informant}_{date}_{expe}'
 
     document = Document()
@@ -120,10 +118,7 @@ def to_word(pivot_dictionary):
 
     counter = 1
 
-    print(pivot_dictionary)
     for key, value in pivot_dictionary.items():
-        print(key, value)
-
         header = f'{counter}. {informant}_{date}@{expe}_{counter}'
         transcription = value[0]
         translation = value[1]
@@ -137,13 +132,13 @@ def to_word(pivot_dictionary):
 
         transcriptions = []
         glosses = []
-        # if len(transcription) >= MAX_LINE_LEN:
 
-        # for token in transcription.replace(' ', '\t').split('\t'):
         transcription_tokens = transcription.split(' ')
         glosses_tokens = gloss.split(' ')
-        gl_cur_len, gl_cur_run = 0, f''
-        transcr_cur_len, transcr_cur_run = 0, f''
+        # gl_cur_len, gl_cur_run = 0, f''
+        gl_cur_len, gl_cur_run = 0, []
+        # transcr_cur_len, transcr_cur_run = 0, f''
+        transcr_cur_len, transcr_cur_run = 0, []
         last_par_index = 0
         for i, (transcription_token, gloss_token) in enumerate(
                 zip(transcription_tokens, glosses_tokens)):
@@ -151,24 +146,32 @@ def to_word(pivot_dictionary):
             if (gl_cur_len + len(gloss_token) <= MAX_LINE_LEN
                 and transcr_cur_len + len(transcription_token) <= MAX_LINE_LEN):
                 # print(f'cond true: `{transcr_cur_run}`, `{gl_cur_run}`, {gl_cur_len}, {gl_cur_run}')
-                transcr_cur_run += f'{transcription_token}\t'
-                gl_cur_run += f'{gloss_token}\t'
+                # transcr_cur_run += f'{transcription_token}\t'
+                transcr_cur_run.append(transcription_token)
+                # gl_cur_run += f'{gloss_token}\t'
+                gl_cur_run.append(gloss_token)
                 transcr_cur_len += len(transcription_token)
                 gl_cur_len += len(gloss_token)
             else:
                 # print(f'cond false: `{transcr_cur_run}`, `{gl_cur_run}`, {gl_cur_len}, {gl_cur_run}')
-                transcriptions.append(transcr_cur_run.strip('\t'))
-                glosses.append(gl_cur_run.strip('\t'))
+                # transcriptions.append(transcr_cur_run.strip('\t'))
+                transcriptions.append(transcr_cur_run)
+                # glosses.append(gl_cur_run.strip('\t'))
+                glosses.append(gl_cur_run)
                 last_par_index += 1
 
-                transcr_cur_run = f'{transcription_token}\t'
-                gl_cur_run = f'{gloss_token}\t'
+                # transcr_cur_run = f'{transcription_token}\t'
+                # gl_cur_run = f'{gloss_token}\t'
+                transcr_cur_run = [transcription_token]
+                gl_cur_run = [gloss_token]
                 transcr_cur_len, gl_cur_len = len(transcription_token), len(gloss_token)
         else:
             if len(glosses) - 1 == last_par_index - 1:
                 # if num of added lines is 1 less than needed, added remaining
-                transcriptions.append(transcr_cur_run.strip('\t'))
-                glosses.append(gl_cur_run.strip('\t'))
+                # transcriptions.append(transcr_cur_run.strip('\t'))
+                transcriptions.append(transcr_cur_run)
+                # glosses.append(gl_cur_run.strip('\t'))
+                glosses.append(gl_cur_run)
 
         print(transcriptions)
         print(glosses)
@@ -178,21 +181,45 @@ def to_word(pivot_dictionary):
                 zip(transcriptions, glosses)):
             print(transcription_line, gloss_line)
 
+            left_indent = 0.5
+            tab_stops = [left_indent]
+            for i, (transcr, gloss) in enumerate(
+                    zip(transcription_line, gloss_line), start=1):
+                transcr_dim = getTextDimensions(transcr, OUT_FONT_POINTS, OUT_FONT)
+                gloss_dim = getTextDimensions(gloss, OUT_FONT_POINTS, OUT_FONT)
+                max_dim = max((transcr_dim[0], gloss_dim[0]))
+                add_cm = (
+                        FACTOR * ((max_dim // 30) * 1 + int(((max_dim % 30) / 30) * 4) / 4)
+                        + 0.25)
+                print(transcr, gloss, transcr_dim, gloss_dim, add_cm)
+                # if add_cm < 1:
+                #     add_cm = 1
+
+                tab_stops.insert(i, tab_stops[i-1] + add_cm)
+
             p_transcription = document.add_paragraph()
             paragraph_format = p_transcription.paragraph_format
             paragraph_format.space_after = Cm(0)
-            paragraph_format.left_indent = Cm(0.5)
-            paragraph_format.tab_stops.add_tab_stop(Cm(2))
-            p_transcription.add_run(transcription_line.replace(' ', '\t')).font.italic = True
+            paragraph_format.left_indent = Cm(left_indent)
+            # paragraph_format.tab_stops.add_tab_stop(Cm(2))
+            # paragraph_format.tab_stops.add_tab_stop(Cm(4))
+            # p_transcription.add_run(transcription_line.replace(' ', '\t')).font.italic = True
+            p_transcription.add_run('\t'.join(transcription_line)).font.italic = True
 
             p_glosses = document.add_paragraph()
             paragraph_format = p_glosses.paragraph_format
             paragraph_format.space_after = Cm(0)
             paragraph_format.left_indent = Cm(0.5)
-            paragraph_format.tab_stops.add_tab_stop(Cm(2))
+            # paragraph_format.tab_stops.add_tab_stop(Cm(2))
+            # paragraph_format.tab_stops.add_tab_stop(Cm(4))
             # print([tab_stop.position.inches for tab_stop in paragraph_format.tab_stops])
-            for part in glossing(gloss_line):
-                print(gloss_line, part)
+            for paragraph in (p_transcription, p_glosses):
+                for tab_stop in tab_stops[1:]:
+                    paragraph.paragraph_format.tab_stops.add_tab_stop(
+                        Cm(tab_stop)
+                    )
+
+            for part in glossing('\t'.join(gloss_line)):
                 if re.match(r'[a-z+]', part):
                     p_glosses.add_run(part).font.small_caps = True
                 else:
