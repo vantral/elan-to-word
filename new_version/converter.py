@@ -1,13 +1,14 @@
-from flask import Flask, send_file
-from flask import render_template, request, redirect, url_for
 from docx import Document
 from docx.shared import Pt, Cm
 from collections import defaultdict
 import re
-import os
+from docx.enum.text import WD_LINE_SPACING
 
 
-FILE = ['']
+def open_file(filename):
+    text = open(filename, encoding='utf-8').read()
+    return text
+
 
 def elan_data(file):
     # elan = elan.replace('&', '')
@@ -39,7 +40,10 @@ def elan_data(file):
     return transc, transl, gloss, comment
 
 
-def to_word(pivot_dictionary, informant, date, expe, others, theme):
+def to_word(pivot_dictionary):
+    informant = input('введите код информанта ')
+    date = input('введите дату ')
+    expe = input('введите свой код ')
     name = f'eve_{informant}_{date}_{expe}.docx'
 
     document = Document()
@@ -66,10 +70,10 @@ def to_word(pivot_dictionary, informant, date, expe, others, theme):
     dat[0].text, dat[1].text = 'Дата', date
 
     els = table.rows[3].cells
-    els[0].text, els[1].text = 'Кто ещё был на паре', others
+    els[0].text, els[1].text = 'Кто ещё был на паре', input('Кто ещё был на паре? ')
 
     inf = table.rows[4].cells
-    inf[0].text, inf[1].text = 'Примерная тематика', theme
+    inf[0].text, inf[1].text = 'Примерная тематика', input('Примерная тематика ')
 
     for row in table.rows:
         for cell in row.cells:
@@ -115,11 +119,7 @@ def to_word(pivot_dictionary, informant, date, expe, others, theme):
         f = paragraph.style.font
         f.name = 'Times New Roman'
         f.size = Pt(12)
-
-    filename = f'/home/vantral/mysite/{name}'
-    document.save(filename)
-
-    return name
+    document.save(f'{name}.docx')
 
 
 def mapping(transc, transl, gloss, comment):
@@ -138,51 +138,14 @@ def glossing(text):
     return glossed_text
 
 
-def main(file, informant, date, expe, others, theme):
+def main():
+    file = input('введите название илановского файла или назовите его 1.txt и нажмите Enter')
+    if file == '':
+        file = '1.txt'
     transc, transl, gloss, comment = elan_data(file)
     mapped_dic = mapping(transc, transl, gloss, comment)
-    return to_word(mapped_dic, informant, date, expe, others, theme)
+    to_word(mapped_dic)
 
-
-app = Flask(__name__)
-
-
-@app.route('/')
-def index():
-    # files = os.listdir('./mysite')
-    # for file in files:
-    #     if file.endswith('.docx'):
-    #         os.remove(f'/home/vantral/mysite/{file}')
-    return render_template(
-        'index.html'
-    )
 
 if __name__ == '__main__':
-    app.run(debug=True)
-
-
-@app.route('/results', methods = ['POST'])
-def upload_route_summary():
-    if request.method == 'POST':
-
-        f = request.files['fileupload']
-
-        fstring = f.read().decode('utf-8')
-        FILE[0] = fstring
-
-    return render_template('data.html')
-
-
-@app.route('/itog', methods = ['GET'])
-def create_file():
-    informant = request.args.get('informant')
-    date = request.args.get('date')
-    expe = request.args.get('expe')
-    others = request.args.get('others')
-    theme = request.args.get('theme')
-    name = main(FILE[0], informant, date, expe, others, theme)
-
-    response = send_file(name, attachment_filename=name, as_attachment=True)
-    response.headers["x-filename"] = name
-    response.headers["Access-Control-Expose-Headers"] = 'x-filename'
-    return response
+    main()
