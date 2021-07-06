@@ -11,7 +11,7 @@ MAX_LINE_LEN = 70
 OUT_FONT = 'Times New Roman'
 OUT_FONT_POINTS = 12
 
-FACTOR = 1
+FACTOR_TABS = 1
 
 def getTextDimensions(text, points, font):
     class SIZE(ctypes.Structure):
@@ -52,18 +52,10 @@ def elan_data(file):
         else:
             indices = (0, 2, 3, 4)
 
-        print(tokens)
-        print(indices)
-
         layer = tokens[indices[0]]
         time_start = tokens[indices[1]]
         time_finish = tokens[indices[2]]
         text = tokens[indices[3]]
-
-        print(layer)
-        print(time_start)
-        print(time_finish)
-        print(text)
 
         if layer == 'transcription':
             transc[(time_start, time_finish)] = text
@@ -135,48 +127,35 @@ def to_word(pivot_dictionary):
 
         transcription_tokens = transcription.split(' ')
         glosses_tokens = gloss.split(' ')
-        # gl_cur_len, gl_cur_run = 0, f''
         gl_cur_len, gl_cur_run = 0, []
-        # transcr_cur_len, transcr_cur_run = 0, f''
         transcr_cur_len, transcr_cur_run = 0, []
         last_par_index = 0
+
+        # accumulate transcription / glosses, until adding next glosses exceeds space
+        # then begin new lines and go on
         for i, (transcription_token, gloss_token) in enumerate(
                 zip(transcription_tokens, glosses_tokens)):
-            # print(transcription_token, gloss_token)
             if (gl_cur_len + len(gloss_token) <= MAX_LINE_LEN
                 and transcr_cur_len + len(transcription_token) <= MAX_LINE_LEN):
-                # print(f'cond true: `{transcr_cur_run}`, `{gl_cur_run}`, {gl_cur_len}, {gl_cur_run}')
-                # transcr_cur_run += f'{transcription_token}\t'
                 transcr_cur_run.append(transcription_token)
-                # gl_cur_run += f'{gloss_token}\t'
                 gl_cur_run.append(gloss_token)
                 transcr_cur_len += len(transcription_token)
                 gl_cur_len += len(gloss_token)
             else:
-                # print(f'cond false: `{transcr_cur_run}`, `{gl_cur_run}`, {gl_cur_len}, {gl_cur_run}')
-                # transcriptions.append(transcr_cur_run.strip('\t'))
                 transcriptions.append(transcr_cur_run)
-                # glosses.append(gl_cur_run.strip('\t'))
                 glosses.append(gl_cur_run)
                 last_par_index += 1
 
-                # transcr_cur_run = f'{transcription_token}\t'
-                # gl_cur_run = f'{gloss_token}\t'
                 transcr_cur_run = [transcription_token]
                 gl_cur_run = [gloss_token]
                 transcr_cur_len, gl_cur_len = len(transcription_token), len(gloss_token)
         else:
             if len(glosses) - 1 == last_par_index - 1:
-                # if num of added lines is 1 less than needed, added remaining
-                # transcriptions.append(transcr_cur_run.strip('\t'))
+                # if num of added lines is 1 less than needed, add remaining
                 transcriptions.append(transcr_cur_run)
-                # glosses.append(gl_cur_run.strip('\t'))
                 glosses.append(gl_cur_run)
 
-        print(transcriptions)
-        print(glosses)
-
-        # TODO: determine tab stops on the go using native length rendering with font
+        # tab stops determined on the go using native length rendering with font
         for i, (transcription_line, gloss_line) in enumerate(
                 zip(transcriptions, glosses)):
             print(transcription_line, gloss_line)
@@ -189,9 +168,11 @@ def to_word(pivot_dictionary):
                 gloss_dim = getTextDimensions(gloss, OUT_FONT_POINTS, OUT_FONT)
                 max_dim = max((transcr_dim[0], gloss_dim[0]))
                 add_cm = (
-                        FACTOR * ((max_dim // 30) * 1 + int(((max_dim % 30) / 30) * 4) / 4)
-                        + 0.25)
-                print(transcr, gloss, transcr_dim, gloss_dim, add_cm)
+                        FACTOR_TABS * ((max_dim // 30) * 1 + int(((max_dim % 30) / 30) * 4) / 4)
+                        + 0.25
+                )
+                # TODO: this may interfere with line estimations from earlier
+                # print(transcr, gloss, transcr_dim, gloss_dim, add_cm)
                 # if add_cm < 1:
                 #     add_cm = 1
 
@@ -201,19 +182,14 @@ def to_word(pivot_dictionary):
             paragraph_format = p_transcription.paragraph_format
             paragraph_format.space_after = Cm(0)
             paragraph_format.left_indent = Cm(left_indent)
-            # paragraph_format.tab_stops.add_tab_stop(Cm(2))
-            # paragraph_format.tab_stops.add_tab_stop(Cm(4))
-            # p_transcription.add_run(transcription_line.replace(' ', '\t')).font.italic = True
             p_transcription.add_run('\t'.join(transcription_line)).font.italic = True
 
             p_glosses = document.add_paragraph()
             paragraph_format = p_glosses.paragraph_format
             paragraph_format.space_after = Cm(0)
             paragraph_format.left_indent = Cm(0.5)
-            # paragraph_format.tab_stops.add_tab_stop(Cm(2))
-            # paragraph_format.tab_stops.add_tab_stop(Cm(4))
-            # print([tab_stop.position.inches for tab_stop in paragraph_format.tab_stops])
-            for paragraph in (p_transcription, p_glosses):
+
+            for paragraph in (p_transcription, p_glosses):  # add all tab stops
                 for tab_stop in tab_stops[1:]:
                     paragraph.paragraph_format.tab_stops.add_tab_stop(
                         Cm(tab_stop)
