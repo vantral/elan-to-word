@@ -107,19 +107,15 @@ def to_word(pivot_dictionary):
             cell.paragraphs[0].paragraph_format.space_after = Cm(0)
     document.add_paragraph().paragraph_format.space_after = Cm(0)
 
-    counter = 1
-
-    for key, value in pivot_dictionary.items():
-        header = f'{counter}. {informant}_{date}@{expe}_{counter}'
+    for counter, (key, value) in enumerate(pivot_dictionary.items(), start=1):
+        header = f'{informant}_{date}@{expe}_{counter}'
         transcription = value[0]
         translation = value[1]
         gloss = value[2]
         comment = value[3]
 
-        p = document.add_paragraph()
-        paragraph_format = p.paragraph_format
-        paragraph_format.space_after = Cm(0.1)
-        p.add_run(header)
+        p = document.add_paragraph(header, style='List Number')
+        p.paragraph_format.space_after = Cm(0.1)
 
         transcriptions = []
         glosses = []
@@ -213,7 +209,6 @@ def to_word(pivot_dictionary):
         p.add_run(f'\'{translation}\'')
         p = document.add_paragraph()
         p.add_run(f'{key[0]} — {key[1]} {comment}')
-        counter += 1
 
     for paragraph in document.paragraphs:
         f = paragraph.style.font
