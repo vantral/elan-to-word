@@ -20,9 +20,9 @@ def get_text_dimensions(text, points, font_filename):
     try:
         font = ImageFont.truetype(font_filename, points)
     except OSError as e:
-        for font in OUT_FONT_BACKUP:
+        for font_option in OUT_FONT_BACKUP:
             try:
-                font = ImageFont.truetype(font, points)
+                font = ImageFont.truetype(font_option, points)
             except OSError as e_backup:
                 pass
 

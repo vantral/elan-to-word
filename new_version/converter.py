@@ -1,9 +1,11 @@
 import re
+from collections import defaultdict
+
 from PIL import ImageFont
 
 from docx import Document
 from docx.shared import Pt, Cm
-from collections import defaultdict
+
 
 MAX_LINE_LEN = 70
 
@@ -14,13 +16,13 @@ OUT_FONT_POINTS = 12
 FACTOR_TABS = 1
 
 
-def getTextDimensions(text, points, font_filename):
+def get_text_dimensions(text, points, font_filename):
     try:
         font = ImageFont.truetype(font_filename, points)
     except OSError as e:
-        for font in OUT_FONT_BACKUP:
+        for font_option in OUT_FONT_BACKUP:
             try:
-                font = ImageFont.truetype(font, points)
+                font = ImageFont.truetype(font_option, points)
             except OSError as e_backup:
                 pass
 
@@ -165,8 +167,8 @@ def to_word(pivot_dictionary):
             tab_stops = [left_indent]
             for i, (transcr, gloss) in enumerate(
                     zip(transcription_line, gloss_line), start=1):
-                transcr_dim = getTextDimensions(transcr, OUT_FONT_POINTS, OUT_FONT)
-                gloss_dim = getTextDimensions(gloss, OUT_FONT_POINTS, OUT_FONT)
+                transcr_dim = get_text_dimensions(transcr, OUT_FONT_POINTS, OUT_FONT)
+                gloss_dim = get_text_dimensions(gloss, OUT_FONT_POINTS, OUT_FONT)
                 max_dim = max((transcr_dim[0], gloss_dim[0]))
                 add_cm = (
                         FACTOR_TABS * ((max_dim // 30) * 1 + int(((max_dim % 30) / 30) * 4) / 4)
