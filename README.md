@@ -1,35 +1,34 @@
-## Инструкция по пользованию программой от антона-батона
-* Шаг 1
+# Elan-to-Word converter
 
-    Разобрать пару в Elan в **нашем шаблоне**, рекомендую, чтобы количество *translation* и *transcription* совпадало
+This tool allows to convert delimited text exported from ELAN into `.docx`.
 
-* Шаг 2
+##Instruction
 
-    Экспортировать разметку из Elan как текст с разделителями:
-```
-Файл > Экспортировать как > Текст с разделителями...
+* Annotate your text using ELAN. Layers are the following:
+  * transcription (phonetic form of sentences)
+  * gloss (morphemes annotation)
+  * translation
+  * comment (any additional information)
 
-*прощёлкать всё ок ок*
-```
+Example file is provided (`example.eaf`). Here is a screenshot.
 
-* Шаг 3
+![](elan_example.png)
 
-    Открыть папку с программой, положить туда *Текст с разделителями*,
-    запустить программу, заполнить всё, что она попросит.
-    В этой же папке получится новый файл **document.xml**.
-* Шаг 4
+* Export as delimited file.
 
-1. Открыть *Шаблон для разбора пар Шаблон.docx* как архив:
+  ![](export_example.png)
 
-    1. Изменить расширение файла с .docx на .zip
-    2. Открыть с помощью чего угодно (на Винде справляется Проводник)
-2. Зайти в папку *word* и засунуть туда файл **document.xml** из предыдущего шага 
-(с заменой находящегося там)
-3. Переделать файл обратно в вордовский:
-    
-    ```
-   Изменить расширение снова на .docx
-    ```
-* Шаг 5
+  * Leave all fields (except time) empty. For time, separate column for duration
+  and ss.ms time format are optional (BUT must be either both checked
+  or both empty. To be on the safe side, just do as is shown on the screenshot below.)
+  
+  ![](settings_example.png)
+  
+  * Example file for delimited text is also provided (`example.txt`)
 
-    Открыть Ворд, нажать, что доверяешь источнику, и проверить результат, сказать антону-батону, если чё-то не так.
+* Run `converter.py` and follow instructions from there.
+* Voilà!
+
+* Also, you can run a web application using the `flask_version` directory.
+
+

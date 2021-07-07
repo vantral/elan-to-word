@@ -1,10 +1,9 @@
 import re
-import ctypes
+from PIL import ImageFont
 
 from docx import Document
 from docx.shared import Pt, Cm
 from collections import defaultdict
-from docx.enum.text import WD_LINE_SPACING
 
 MAX_LINE_LEN = 70
 
@@ -13,21 +12,13 @@ OUT_FONT_POINTS = 12
 
 FACTOR_TABS = 1
 
-def getTextDimensions(text, points, font):
-    class SIZE(ctypes.Structure):
-        _fields_ = [("cx", ctypes.c_long), ("cy", ctypes.c_long)]
 
-    hdc = ctypes.windll.user32.GetDC(0)
-    hfont = ctypes.windll.gdi32.CreateFontA(points, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, font)
-    hfont_old = ctypes.windll.gdi32.SelectObject(hdc, hfont)
+def getTextDimensions(text, points, font_filename):
 
-    size = SIZE(0, 0)
-    ctypes.windll.gdi32.GetTextExtentPoint32A(hdc, text, len(text), ctypes.byref(size))
+    font = ImageFont.truetype(font_filename, points)
+    size = font.getsize(text.upper())
 
-    ctypes.windll.gdi32.SelectObject(hdc, hfont_old)
-    ctypes.windll.gdi32.DeleteObject(hfont)
-
-    return size.cx, size.cy
+    return size
 
 
 def open_file(filename):
@@ -127,6 +118,12 @@ def to_word(pivot_dictionary):
 
         transcription_tokens = transcription.split(' ')
         glosses_tokens = gloss.split(' ')
+        len_transc = len(transcription_tokens)
+        len_gloss = len(glosses_tokens)
+        if len_transc > len_gloss:
+            glosses_tokens.extend([''] * (len_transc - len_gloss))
+        elif len_gloss > len_transc:
+            transcription_tokens.extend([''] * (len_gloss - len_transc))
         gl_cur_len, gl_cur_run = 0, []
         transcr_cur_len, transcr_cur_run = 0, []
         last_par_index = 0
@@ -169,7 +166,7 @@ def to_word(pivot_dictionary):
                 max_dim = max((transcr_dim[0], gloss_dim[0]))
                 add_cm = (
                         FACTOR_TABS * ((max_dim // 30) * 1 + int(((max_dim % 30) / 30) * 4) / 4)
-                        + 0.25
+                        + 0.15
                 )
                 # TODO: this may interfere with line estimations from earlier
                 # print(transcr, gloss, transcr_dim, gloss_dim, add_cm)

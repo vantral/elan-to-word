@@ -1,13 +1,37 @@
+import re
+import ctypes
+from PIL import ImageFont
+
 from flask import Flask, send_file
 from flask import render_template, request, redirect, url_for
+
 from docx import Document
 from docx.shared import Pt, Cm
 from collections import defaultdict
-import re
-import os
+from docx.enum.text import WD_LINE_SPACING
 
 
 FILE = ['']
+
+MAX_LINE_LEN = 70
+
+OUT_FONT = 'times.ttf'
+OUT_FONT_POINTS = 12
+
+FACTOR_TABS = 1
+
+
+def getTextDimensions(text, points, font_filename):
+    font = ImageFont.truetype(font_filename, points)
+    size = font.getsize(text.upper())
+
+    return size
+
+
+def open_file(filename):
+    text = open(filename, encoding='utf-8').read()
+    return text
+
 
 def elan_data(file):
     # elan = elan.replace('&', '')
@@ -18,16 +42,19 @@ def elan_data(file):
     transl = defaultdict(str)
     gloss = defaultdict(str)
     comment = defaultdict(str)
+
     for line in elan:
         tokens = line.split('\t')
-        if len(line) == 9:
+        if len(tokens) == 9:
             indices = (0, 2, 4, 8)
         else:
             indices = (0, 2, 3, 4)
+
         layer = tokens[indices[0]]
         time_start = tokens[indices[1]]
         time_finish = tokens[indices[2]]
         text = tokens[indices[3]]
+
         if layer == 'transcription':
             transc[(time_start, time_finish)] = text
         elif layer == 'translation':
@@ -40,7 +67,7 @@ def elan_data(file):
 
 
 def to_word(pivot_dictionary, informant, date, expe, others, theme):
-    name = f'eve_{informant}_{date}_{expe}.docx'
+    name = f'eve_{informant}_{date}_{expe}'
 
     document = Document()
     sections = document.sections
@@ -82,26 +109,99 @@ def to_word(pivot_dictionary, informant, date, expe, others, theme):
         header = f'{counter}. {informant}_{date}@{expe}_{counter}'
         transcription = value[0]
         translation = value[1]
-        glosses = value[2]
+        gloss = value[2]
         comment = value[3]
+
         p = document.add_paragraph()
         paragraph_format = p.paragraph_format
         paragraph_format.space_after = Cm(0.1)
         p.add_run(header)
-        p = document.add_paragraph()
-        paragraph_format = p.paragraph_format
-        paragraph_format.space_after = Cm(0)
-        paragraph_format.left_indent = Cm(0.5)
-        p.add_run(transcription.replace(' ', '\t')).font.italic = True
-        p = document.add_paragraph()
-        paragraph_format = p.paragraph_format
-        paragraph_format.space_after = Cm(0)
-        paragraph_format.left_indent = Cm(0.5)
-        for part in glossing(glosses):
-            if re.match(r'[a-z+]', part):
-                p.add_run(part).font.small_caps = True
+
+        transcriptions = []
+        glosses = []
+
+        transcription_tokens = transcription.split(' ')
+        glosses_tokens = gloss.split(' ')
+        len_transc = len(transcription_tokens)
+        len_gloss = len(glosses_tokens)
+        if len_transc > len_gloss:
+            glosses_tokens.extend([''] * (len_transc - len_gloss))
+        elif len_gloss > len_transc:
+            transcription_tokens.extend([''] * (len_gloss - len_transc))
+        gl_cur_len, gl_cur_run = 0, []
+        transcr_cur_len, transcr_cur_run = 0, []
+        last_par_index = 0
+
+        # accumulate transcription / glosses, until adding next glosses exceeds space
+        # then begin new lines and go on
+        for i, (transcription_token, gloss_token) in enumerate(
+                zip(transcription_tokens, glosses_tokens)):
+            if (gl_cur_len + len(gloss_token) <= MAX_LINE_LEN
+                and transcr_cur_len + len(transcription_token) <= MAX_LINE_LEN):
+                transcr_cur_run.append(transcription_token)
+                gl_cur_run.append(gloss_token)
+                transcr_cur_len += len(transcription_token)
+                gl_cur_len += len(gloss_token)
             else:
-                p.add_run(part)
+                transcriptions.append(transcr_cur_run)
+                glosses.append(gl_cur_run)
+                last_par_index += 1
+
+                transcr_cur_run = [transcription_token]
+                gl_cur_run = [gloss_token]
+                transcr_cur_len, gl_cur_len = len(transcription_token), len(gloss_token)
+        else:
+            if len(glosses) - 1 == last_par_index - 1:
+                # if num of added lines is 1 less than needed, add remaining
+                transcriptions.append(transcr_cur_run)
+                glosses.append(gl_cur_run)
+
+        # tab stops determined on the go using native length rendering with font
+        for i, (transcription_line, gloss_line) in enumerate(
+                zip(transcriptions, glosses)):
+            print(transcription_line, gloss_line)
+
+            left_indent = 0.5
+            tab_stops = [left_indent]
+            for i, (transcr, gloss) in enumerate(
+                    zip(transcription_line, gloss_line), start=1):
+                transcr_dim = getTextDimensions(transcr, OUT_FONT_POINTS, OUT_FONT)
+                gloss_dim = getTextDimensions(gloss, OUT_FONT_POINTS, OUT_FONT)
+                max_dim = max((transcr_dim[0], gloss_dim[0]))
+                add_cm = (
+                        FACTOR_TABS * ((max_dim // 30) * 1 + int(((max_dim % 30) / 30) * 4) / 4)
+                        + 0.15
+                )
+                # TODO: this may interfere with line estimations from earlier
+                # print(transcr, gloss, transcr_dim, gloss_dim, add_cm)
+                # if add_cm < 1:
+                #     add_cm = 1
+
+                tab_stops.insert(i, tab_stops[i-1] + add_cm)
+
+            p_transcription = document.add_paragraph()
+            paragraph_format = p_transcription.paragraph_format
+            paragraph_format.space_after = Cm(0)
+            paragraph_format.left_indent = Cm(left_indent)
+            p_transcription.add_run('\t'.join(transcription_line)).font.italic = True
+
+            p_glosses = document.add_paragraph()
+            paragraph_format = p_glosses.paragraph_format
+            paragraph_format.space_after = Cm(0)
+            paragraph_format.left_indent = Cm(0.5)
+
+            for paragraph in (p_transcription, p_glosses):  # add all tab stops
+                for tab_stop in tab_stops[1:]:
+                    paragraph.paragraph_format.tab_stops.add_tab_stop(
+                        Cm(tab_stop)
+                    )
+
+            for part in glossing('\t'.join(gloss_line)):
+                if re.match(r'[a-z+]', part):
+                    p_glosses.add_run(part).font.small_caps = True
+                else:
+                    p_glosses.add_run(part)
+
         p = document.add_paragraph()
         paragraph_format = p.paragraph_format
         paragraph_format.space_after = Cm(0.1)
@@ -115,11 +215,10 @@ def to_word(pivot_dictionary, informant, date, expe, others, theme):
         f = paragraph.style.font
         f.name = 'Times New Roman'
         f.size = Pt(12)
-
-    filename = f'/home/vantral/mysite/{name}'
+    filename = f'{name}.docx'
     document.save(filename)
 
-    return name
+    return name + '.docx'
 
 
 def mapping(transc, transl, gloss, comment):
@@ -133,7 +232,7 @@ def mapping(transc, transl, gloss, comment):
 
 
 def glossing(text):
-    text = text.replace(' ', '\t')
+    # text = text.replace(' ', '\t')
     glossed_text = re.split(r'([a-z+])', text)
     return glossed_text
 
@@ -149,16 +248,9 @@ app = Flask(__name__)
 
 @app.route('/')
 def index():
-    # files = os.listdir('./mysite')
-    # for file in files:
-    #     if file.endswith('.docx'):
-    #         os.remove(f'/home/vantral/mysite/{file}')
     return render_template(
         'index.html'
     )
-
-if __name__ == '__main__':
-    app.run(debug=True)
 
 
 @app.route('/results', methods = ['POST'])
@@ -181,8 +273,12 @@ def create_file():
     others = request.args.get('others')
     theme = request.args.get('theme')
     name = main(FILE[0], informant, date, expe, others, theme)
-
+    print(name)
     response = send_file(name, attachment_filename=name, as_attachment=True)
     response.headers["x-filename"] = name
     response.headers["Access-Control-Expose-Headers"] = 'x-filename'
     return response
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
