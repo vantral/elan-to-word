@@ -1,6 +1,7 @@
 import re
 import ctypes
 from PIL import ImageFont
+import os
 
 from flask import Flask, send_file
 from flask import render_template, request, redirect, url_for
@@ -15,14 +16,23 @@ FILE = ['']
 
 MAX_LINE_LEN = 70
 
-OUT_FONT = 'times.ttf'
+OUT_FONT = 'Times New Roman'
+OUT_FONT_BACKUP = ['times.ttf']
 OUT_FONT_POINTS = 12
 
 FACTOR_TABS = 1
 
 
-def getTextDimensions(text, points, font_filename):
-    font = ImageFont.truetype(font_filename, points)
+def get_text_dimensions(text, points, font_filename):
+    try:
+        font = ImageFont.truetype(font_filename, points)
+    except OSError as e:
+        for font_option in OUT_FONT_BACKUP:
+            try:
+                font = ImageFont.truetype(font_option, points)
+            except OSError as e_backup:
+                pass
+
     size = font.getsize(text.upper())
 
     return size
@@ -103,19 +113,15 @@ def to_word(pivot_dictionary, informant, date, expe, others, theme):
             cell.paragraphs[0].paragraph_format.space_after = Cm(0)
     document.add_paragraph().paragraph_format.space_after = Cm(0)
 
-    counter = 1
-
-    for key, value in pivot_dictionary.items():
-        header = f'{counter}. {informant}_{date}@{expe}_{counter}'
+    for counter, (key, value) in enumerate(pivot_dictionary.items(), start=1):
+        header = f'{informant}_{date}@{expe}_{counter}'
         transcription = value[0]
         translation = value[1]
         gloss = value[2]
         comment = value[3]
 
-        p = document.add_paragraph()
-        paragraph_format = p.paragraph_format
-        paragraph_format.space_after = Cm(0.1)
-        p.add_run(header)
+        p = document.add_paragraph(header, style='List Number')
+        p.paragraph_format.space_after = Cm(0.1)
 
         transcriptions = []
         glosses = []
@@ -165,8 +171,8 @@ def to_word(pivot_dictionary, informant, date, expe, others, theme):
             tab_stops = [left_indent]
             for i, (transcr, gloss) in enumerate(
                     zip(transcription_line, gloss_line), start=1):
-                transcr_dim = getTextDimensions(transcr, OUT_FONT_POINTS, OUT_FONT)
-                gloss_dim = getTextDimensions(gloss, OUT_FONT_POINTS, OUT_FONT)
+                transcr_dim = get_text_dimensions(transcr, OUT_FONT_POINTS, OUT_FONT)
+                gloss_dim = get_text_dimensions(gloss, OUT_FONT_POINTS, OUT_FONT)
                 max_dim = max((transcr_dim[0], gloss_dim[0]))
                 add_cm = (
                         FACTOR_TABS * ((max_dim // 30) * 1 + int(((max_dim % 30) / 30) * 4) / 4)
@@ -206,17 +212,15 @@ def to_word(pivot_dictionary, informant, date, expe, others, theme):
         paragraph_format = p.paragraph_format
         paragraph_format.space_after = Cm(0.1)
         paragraph_format.left_indent = Cm(0.5)
-        p.add_run(f'\'{translation}\'')
+        p.add_run(f'‘{translation}’')
         p = document.add_paragraph()
         p.add_run(f'{key[0]} — {key[1]} {comment}')
-        counter += 1
 
     for paragraph in document.paragraphs:
         f = paragraph.style.font
         f.name = 'Times New Roman'
         f.size = Pt(12)
-    filename = f'{name}.docx'
-    document.save(filename)
+    document.save(f'{name}.docx')
 
     return name + '.docx'
 
@@ -256,7 +260,6 @@ def index():
 @app.route('/results', methods = ['POST'])
 def upload_route_summary():
     if request.method == 'POST':
-
         f = request.files['fileupload']
 
         fstring = f.read().decode('utf-8')

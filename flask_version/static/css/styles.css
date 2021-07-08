@@ -1,0 +1,57 @@
+.file {
+  opacity: 0;
+  width: 0.1px;
+  height: 0.1px;
+  position: absolute;
+}
+.file-input label {
+  display: block;
+  width: 200px;
+  margin: 0 auto;
+  height: 50px;
+  border-radius: 25px;
+  background: linear-gradient(40deg, #ff6ec4, #7873f5);
+  box-shadow: 0 4px 7px rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform .2s ease-out;
+}
+
+input:hover + label,
+input:focus + label {
+  transform: scale(1.02);
+}
+
+input:focus + label {
+  outline: 1px solid #000;
+  outline: -webkit-focus-ring-color auto 2px;
+}
+.file-name {
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.file-submit label {
+  display: none;
+  width: 150px;
+  margin: 0 auto;
+  height: 30px;
+  border-radius: 25px;
+  background: linear-gradient(40deg, #aa65c4, #7873f5);
+  box-shadow: 0 4px 7px rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform .2s ease-out;
+}
+
+.meta {
+  width: 200px;
+}

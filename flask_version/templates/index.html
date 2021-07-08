@@ -1,8 +1,29 @@
-<!DOCTYPE html>
-<!-- saved from url=(0090)https://www.pythonanywhere.com/user/vantral/files/home/vantral/mysite/templates/index.html -->
-<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"></head><body><form action="/results" method="post" enctype="multipart/form-data">
-    <input type="file" name="fileupload" id="fileToUpload">
-    <input type="submit" value="Upload File" name="submit">
-</form>
+{% extends 'base.html' %}
 
-</body></html>
+{% block content %}
+
+  <!-- ======= Hero Section ======= -->
+  <section id="hero" class="align-items-center">
+    <div class="container position-relative">
+      <div class="row justify-content-center">
+        <div class="col-xl-7 col-lg-9 text-center">
+          <h1>Elan-to-Word converter</h1>
+          <h2>Please, upload a delimited file from Elan.</h2>
+        </div>
+      </div>
+      <form action="/results" method="post" name="f" enctype="multipart/form-data">
+        <div class="text-center" style="margin-top: 30px;">
+          <div class="file-input">
+            <input type="file" name="fileupload" id="file" accept=".txt" class="file" required>
+            <label for="file">Select file</label>
+            <p class="file-name" style="margin-top: 10px;"></p>
+        </div>
+        </div>
+        <div class="text-center" style="margin-top: 30px;">
+          <div class="file-submit">
+            <input type="submit" id="file-submit" class="file">
+            <label for="file-submit">Upload File</label>
+          </div>
+        </div>
+      </form>
+{% endblock %}

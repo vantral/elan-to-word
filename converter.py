@@ -208,7 +208,7 @@ def to_word(pivot_dictionary):
         paragraph_format = p.paragraph_format
         paragraph_format.space_after = Cm(0.1)
         paragraph_format.left_indent = Cm(0.5)
-        p.add_run(f'\'{translation}\'')
+        p.add_run(f'‘{translation}’')
         p = document.add_paragraph()
         p.add_run(f'{key[0]} — {key[1]} {comment}')
 

@@ -1,12 +1,58 @@
-<!DOCTYPE html>
-<!-- saved from url=(0089)https://www.pythonanywhere.com/user/vantral/files/home/vantral/mysite/templates/data.html -->
-<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"></head><body><form action="/itog" method="GET">
-<input class="text" type="text" name="informant" size="5" placeholder="Информант">
-<input class="text" type="text" name="date" size="5" placeholder="Дата">
-<input class="text" type="text" name="expe" size="5" placeholder="Экспедиционер">
-<input class="text" type="text" name="others" size="5" placeholder="Кто ещё был на паре?">
-<input class="text" type="text" name="theme" size="5" placeholder="Тема">
-<input type="submit" value="ответить">
-</form>
+{% extends 'base.html' %}
 
-</body></html>
+{% block content %}
+<style type="text/css">
+    .tg  {border-collapse:collapse;border-spacing:0;}
+    .tg td{border-color:transparent;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+      overflow:hidden;padding:0px 5px;word-break:normal;}
+    .tg th{border-color:transparent;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+      font-weight:normal;overflow:hidden;padding:0px 5px;word-break:normal;}
+    .tg .tg-0lax{text-align:left;vertical-align:center;}
+</style>
+        
+<section id="hero" class="align-items-center">
+<div class="container position-relative">
+      <div class="row justify-content-center">
+        <div class="col-xl-7 col-lg-9 text-center">
+          <h1>Elan-to-Word converter</h1>
+          <h2>Please, fill out the fields using latin characters.</h2>
+        </div>
+      </div>
+      <div align="center">
+        <form action="/itog" method="GET" style="width: 700px">
+        <table class="tg" style="margin-top: 30px;">
+        <thead>
+          <tr>
+            <th class="tg-0lax"><h2>Consultant code</h2></th>
+            <th class="tg-0lax"><h2><input class="meta" pattern="[a-zA-Z0-9\s\.\-_]+" type="text" name="informant" size="20"></h2></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="tg-0lax"><h2>Date</h2></td>
+            <td class="tg-0lax"><h2><input class="meta" pattern="[a-zA-Z0-9\s\.\-_]+" type="text" name="date" size="20"></h2></td>
+          </tr>
+          <tr>
+            <td class="tg-0lax"><h2>Annotator code</h2></td>
+            <td class="tg-0lax"><h2><input class="meta" pattern="[a-zA-Z0-9\s\.\-_]+" type="text" name="expe" size="20"></h2></td>
+          </tr>
+          <tr>
+            <td class="tg-0lax"><h2>Codes of other linguists</h2></td>
+            <td class="tg-0lax"><h2><input class="meta" pattern="[a-zA-Z0-9\s\.\-,_]+" type="text" name="others" size="20"></h2></td>
+          </tr>
+          <tr>
+            <td class="tg-0lax"><h2>Theme</h2></td>
+            <td class="tg-0lax"><h2><input class="meta" type="text" name="theme" size="20"></h2></td>
+          </tr>
+        </tbody>
+        </table>
+        <div class="text-center" style="margin-top: 30px;">
+          <div class="file-submit">
+            <input type="submit" id="file-submit" class="file">
+            <label for="file-submit">Submit</label>
+          </div>
+        </div>
+      </form>
+    </div>
+
+{% endblock %}
