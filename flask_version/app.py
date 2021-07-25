@@ -322,10 +322,10 @@ def write_small_caps():
         mapping = {}
     file = request.files['textupload']
     name = str(time.time()) + request.remote_addr
-    file.save(f'C:\\Users\\anton\\Рабочий стол\\linguistics\\экспа 2021\\elan-to-word\\flask_version\\{name}')
+    file.save(f'/path/{name}')
 
     lst = get_small_caps_list(Document(
-        f'C:\\Users\\anton\\Рабочий стол\\linguistics\\экспа 2021\\elan-to-word\\flask_version\\{name}'
+        f'/path/{name}'
     ))
 
     document = Document()
@@ -352,8 +352,8 @@ def write_small_caps():
         f = paragraph.style.font
         f.name = 'Times New Roman'
         f.size = Pt(12)
-    document.save(f'C:\\Users\\anton\\Рабочий стол\\linguistics\\экспа 2021\\elan-to-word\\flask_version\\{name}')
-    response = send_file(name, attachment_filename='list of abbreviations.docx', as_attachment=True)
+    document.save(f'/path/{name}')
+    response = send_file(f'/path/{name}', attachment_filename='list of abbreviations.docx', as_attachment=True)
     response.headers["x-filename"] = 'List of abbreviations.docx'
     response.headers["Access-Control-Expose-Headers"] = 'x-filename'
     return response
