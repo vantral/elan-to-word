@@ -2,6 +2,9 @@ import re
 import ctypes
 from PIL import ImageFont
 import os
+import time
+import random
+import json
 
 from flask import Flask, send_file
 from flask import render_template, request, redirect, url_for
@@ -10,7 +13,6 @@ from docx import Document
 from docx.shared import Pt, Cm
 from collections import defaultdict
 from docx.enum.text import WD_LINE_SPACING
-
 
 FILE = ['']
 
@@ -143,7 +145,7 @@ def to_word(pivot_dictionary, informant, date, expe, others, theme):
         for i, (transcription_token, gloss_token) in enumerate(
                 zip(transcription_tokens, glosses_tokens)):
             if (gl_cur_len + len(gloss_token) <= MAX_LINE_LEN
-                and transcr_cur_len + len(transcription_token) <= MAX_LINE_LEN):
+                    and transcr_cur_len + len(transcription_token) <= MAX_LINE_LEN):
                 transcr_cur_run.append(transcription_token)
                 gl_cur_run.append(gloss_token)
                 transcr_cur_len += len(transcription_token)
@@ -183,7 +185,7 @@ def to_word(pivot_dictionary, informant, date, expe, others, theme):
                 # if add_cm < 1:
                 #     add_cm = 1
 
-                tab_stops.insert(i, tab_stops[i-1] + add_cm)
+                tab_stops.insert(i, tab_stops[i - 1] + add_cm)
 
             p_transcription = document.add_paragraph()
             paragraph_format = p_transcription.paragraph_format
@@ -241,6 +243,26 @@ def glossing(text):
     return glossed_text
 
 
+def get_small_caps_list(doc):
+    small_caps = []
+    for para in doc.paragraphs:
+        for run in para.runs:
+            if run.font.small_caps:
+                line = run.text
+                line = line.strip('‘’/ \t-.\n')
+                if line:
+                    glosses = re.split(r'[-.~:=]', line)
+                    small_caps.extend(glosses)
+
+    small_caps = list(set(small_caps))
+    for pernum in ['1sg', '2sg', '3sg', '1pl', '2pl', '3pl']:
+        if pernum in small_caps:
+            small_caps.remove(pernum)
+            small_caps.extend([pernum[0], pernum[1:]])
+    small_caps = sorted(set(small_caps))
+    return small_caps
+
+
 def main(file, informant, date, expe, others, theme):
     transc, transl, gloss, comment = elan_data(file)
     mapped_dic = mapping(transc, transl, gloss, comment)
@@ -257,7 +279,14 @@ def index():
     )
 
 
-@app.route('/results', methods = ['POST'])
+@app.route('/gloss')
+def gloss():
+    return render_template(
+        'gloss.html'
+    )
+
+
+@app.route('/results', methods=['POST'])
 def upload_route_summary():
     if request.method == 'POST':
         f = request.files['fileupload']
@@ -268,7 +297,7 @@ def upload_route_summary():
     return render_template('data.html')
 
 
-@app.route('/itog', methods = ['GET'])
+@app.route('/itog', methods=['GET'])
 def create_file():
     informant = request.args.get('informant')
     date = request.args.get('date')
@@ -279,6 +308,53 @@ def create_file():
     print(name)
     response = send_file(name, attachment_filename=name, as_attachment=True)
     response.headers["x-filename"] = name
+    response.headers["Access-Control-Expose-Headers"] = 'x-filename'
+    return response
+
+
+@app.route('/list_of_abbr', methods=['POST', 'GET'])
+def write_small_caps():
+    mapping = request.files['jsonupload']
+    if mapping:
+        mapping = mapping.read().decode('utf-8')
+        mapping = json.loads(mapping)
+    else:
+        mapping = {}
+    file = request.files['textupload']
+    name = str(time.time()) + request.remote_addr
+    file.save(f'C:\\Users\\anton\\Рабочий стол\\linguistics\\экспа 2021\\elan-to-word\\flask_version\\{name}')
+
+    lst = get_small_caps_list(Document(
+        f'C:\\Users\\anton\\Рабочий стол\\linguistics\\экспа 2021\\elan-to-word\\flask_version\\{name}'
+    ))
+
+    document = Document()
+    sections = document.sections
+    for section in sections:
+        section.top_margin = Cm(1.5)
+        section.bottom_margin = Cm(1.5)
+        section.left_margin = Cm(2.5)
+        section.right_margin = Cm(1.5)
+
+    para = document.add_paragraph()
+    for i, gloss in enumerate(lst, 1):
+        para.add_run(gloss).font.small_caps = True
+        para.add_run(u'\u00A0')
+        para.add_run('—')
+        para.add_run(u'\u00A0')
+        para.add_run(mapping.get(gloss, ''))
+        if i == len(lst):
+            para.add_run('.')
+        else:
+            para.add_run('; ')
+
+    for paragraph in document.paragraphs:
+        f = paragraph.style.font
+        f.name = 'Times New Roman'
+        f.size = Pt(12)
+    document.save(f'C:\\Users\\anton\\Рабочий стол\\linguistics\\экспа 2021\\elan-to-word\\flask_version\\{name}')
+    response = send_file(name, attachment_filename='list of abbreviations.docx', as_attachment=True)
+    response.headers["x-filename"] = 'List of abbreviations.docx'
     response.headers["Access-Control-Expose-Headers"] = 'x-filename'
     return response
 

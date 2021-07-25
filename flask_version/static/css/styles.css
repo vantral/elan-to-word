@@ -34,6 +34,10 @@ input:focus + label {
   font-size: 0.85rem;
   color: #555;
 }
+.file-name-j {
+  font-size: 0.85rem;
+  color: #555;
+}
 
 .file-submit label {
   display: none;
