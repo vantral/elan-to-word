@@ -1,9 +1,7 @@
 .file {
-  opacity: 0;
-  width: 0.1px;
-  height: 0.1px;
-  position: absolute;
+  opacity: 50%;
 }
+
 .file-input label {
   display: block;
   width: 200px;
