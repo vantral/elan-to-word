@@ -306,7 +306,7 @@ def create_file():
     theme = request.args.get('theme')
     name = main(FILE[0], informant, date, expe, others, theme)
     print(name)
-    response = send_file(name, attachment_filename=name, as_attachment=True)
+    response = send_file(name, download_name=name, as_attachment=True)
     response.headers["x-filename"] = name
     response.headers["Access-Control-Expose-Headers"] = 'x-filename'
     return response
